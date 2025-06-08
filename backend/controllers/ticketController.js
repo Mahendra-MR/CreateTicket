@@ -1,28 +1,32 @@
 const Ticket = require('../models/Ticket');
 
-// ✅ Create a ticket
+// ✅ Create a new ticket
 const createTicket = async (req, res) => {
   try {
+    const { title, description, priority } = req.body;
+
     const ticket = await Ticket.create({
-      title: req.body.title,
-      description: req.body.description,
-      priority: req.body.priority.toLowerCase(), // enforce lowercase
-      createdBy: req.user._id
+      title,
+      description,
+      priority: priority?.toLowerCase(),
+      createdBy: req.user._id,
     });
+
     res.status(201).json(ticket);
   } catch (err) {
-    console.error('Ticket creation error:', err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Ticket creation error:', err.message);
+    res.status(500).json({ error: 'Failed to create ticket' });
   }
 };
 
-// ✅ Get tickets for the logged-in user
+// ✅ Get all tickets created by logged-in user
 const getTickets = async (req, res) => {
   try {
-    const tickets = await Ticket.find({ createdBy: req.user._id });
-    res.json(tickets);
+    const tickets = await Ticket.find({ createdBy: req.user._id }).sort({ createdAt: -1 });
+    res.status(200).json(tickets);
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Fetch tickets error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch tickets' });
   }
 };
 
@@ -31,42 +35,32 @@ const updateTicketStatus = async (req, res) => {
   try {
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
-    if (ticket.createdBy.toString() !== req.user._id.toString())
-      return res.status(401).json({ error: 'Not authorized' });
 
-    // 👇 Convert inputs to lowercase
-    if (req.body.status) ticket.status = req.body.status.toLowerCase();
-    if (req.body.priority) ticket.priority = req.body.priority.toLowerCase();
+    if (ticket.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const { status, priority } = req.body;
+    if (status) ticket.status = status.toLowerCase();
+    if (priority) ticket.priority = priority.toLowerCase();
 
     await ticket.save();
-    res.json(ticket);
+    res.status(200).json(ticket);
   } catch (err) {
-    console.error('Status update error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
-// DELETE a ticket
-const deleteTicket = async (req, res) => {
-  try {
-    const ticket = await Ticket.findById(req.params.id);
-    if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
-    if (ticket.createdBy.toString() !== req.user._id.toString())
-      return res.status(401).json({ error: 'Not authorized' });
-
-    await ticket.remove();
-    res.json({ message: 'Ticket deleted successfully' });
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Update status error:', err.message);
+    res.status(500).json({ error: 'Failed to update ticket status' });
   }
 };
 
-// UPDATE ticket title/description/priority
+// ✅ Edit ticket title, description, or priority
 const editTicket = async (req, res) => {
   try {
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
-    if (ticket.createdBy.toString() !== req.user._id.toString())
-      return res.status(401).json({ error: 'Not authorized' });
+
+    if (ticket.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
 
     const { title, description, priority } = req.body;
     if (title) ticket.title = title;
@@ -74,9 +68,28 @@ const editTicket = async (req, res) => {
     if (priority) ticket.priority = priority.toLowerCase();
 
     await ticket.save();
-    res.json(ticket);
+    res.status(200).json(ticket);
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Edit ticket error:', err.message);
+    res.status(500).json({ error: 'Failed to update ticket' });
+  }
+};
+
+// ✅ Delete a ticket
+const deleteTicket = async (req, res) => {
+  try {
+    const ticket = await Ticket.findById(req.params.id);
+    if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+
+    if (ticket.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    await ticket.deleteOne(); // preferred over deprecated remove()
+    res.status(200).json({ message: 'Ticket deleted successfully' });
+  } catch (err) {
+    console.error('Delete ticket error:', err.message);
+    res.status(500).json({ error: 'Failed to delete ticket' });
   }
 };
 
@@ -84,7 +97,6 @@ module.exports = {
   createTicket,
   getTickets,
   updateTicketStatus,
-  deleteTicket,
   editTicket,
+  deleteTicket,
 };
-

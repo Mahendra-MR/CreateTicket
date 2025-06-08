@@ -4,21 +4,23 @@ const {
   getTickets,
   updateTicketStatus,
   editTicket,
-  deleteTicket
+  deleteTicket,
 } = require('../controllers/ticketController');
 const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Create a new ticket & Get all tickets
-router.route('/')
-  .post(protect, createTicket)
-  .get(protect, getTickets);
+// Routes for creating and fetching tickets
+router
+  .route('/')
+  .post(protect, createTicket)  // Create a new ticket
+  .get(protect, getTickets);    // Get all tickets for the user
 
-// Update status (PUT), edit details (PATCH), delete ticket (DELETE)
-router.route('/:id')
-  .put(protect, updateTicketStatus)   // Only for status change
-  .patch(protect, editTicket)         // Edit title, description, priority
-  .delete(protect, deleteTicket);     // Delete the ticket
+// Routes for single ticket: update status, edit, delete
+router
+  .route('/:id')
+  .put(protect, updateTicketStatus)  // Change only the status
+  .patch(protect, editTicket)        // Edit title, description, priority
+  .delete(protect, deleteTicket);    // Delete a ticket
 
 module.exports = router;
